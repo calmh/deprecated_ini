@@ -135,3 +135,44 @@ baz2=quux2
 		t.Errorf("Incorrect INI after set:\n%s", s)
 	}
 }
+
+func TestSetManyEquals(t *testing.T) {
+	buf := bytes.NewBufferString("[general]\nfoo=bar==\nfoo2=bar2==\n")
+	cfg := ini.Parse(buf)
+
+	cfg.Set("general", "foo", "baz==")
+
+	var out bytes.Buffer
+	cfg.Write(&out)
+
+	correct := `[general]
+foo=baz==
+foo2=bar2==
+
+`
+
+	if s := out.String(); s != correct {
+		t.Errorf("Incorrect INI after set:\n%s", s)
+	}
+}
+
+func TestRewriteDuplicate(t *testing.T) {
+	buf := bytes.NewBufferString("[general]\nfoo=bar==\nfoo=bar2==\n")
+	cfg := ini.Parse(buf)
+
+	if v := cfg.Get("general", "foo"); v != "bar2==" {
+		t.Errorf("incorrect get %q", v)
+	}
+
+	var out bytes.Buffer
+	cfg.Write(&out)
+
+	correct := `[general]
+foo=bar2==
+
+`
+
+	if s := out.String(); s != correct {
+		t.Errorf("Incorrect INI after set:\n%s", s)
+	}
+}

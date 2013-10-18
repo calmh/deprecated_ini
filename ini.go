@@ -28,7 +28,7 @@ type option struct {
 
 var (
 	iniSectionRe = regexp.MustCompile(`^\[(.+)\]$`)
-	iniOptionRe  = regexp.MustCompile(`^([^\s]+)\s*=\s*(.+?)$`)
+	iniOptionRe  = regexp.MustCompile(`^([^\s=]+)\s*=\s*(.+?)$`)
 )
 
 // Sections returns the list of sections in the file.
@@ -82,29 +82,42 @@ func (c *Config) Comments(section string) []string {
 	return nil
 }
 
+// AddComments appends the comment to the list of comments for the section.
+func (c *Config) AddComment(sect, comment string) {
+	if sect == "" {
+		c.comments = append(c.comments, comment)
+		return
+	}
+
+	for i, s := range c.sections {
+		if s.name == sect {
+			c.sections[i].comments = append(s.comments, comment)
+			return
+		}
+	}
+
+	c.sections = append(c.sections, section{
+		name:     sect,
+		comments: []string{comment},
+	})
+}
+
 // Parse reads the given io.Reader and returns a parsed Config object.
 func Parse(stream io.Reader) Config {
-	var iniFile Config
-	var curSection section
+	var cfg Config
+	var curSection string
+
 	scanner := bufio.NewScanner(bufio.NewReader(stream))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if strings.HasPrefix(line, "#") || strings.HasPrefix(line, ";") {
 			comment := strings.TrimLeft(line, ";# ")
-			if curSection.name != "" {
-				// In a section
-				curSection.comments = append(curSection.comments, comment)
-			} else {
-				// Before any section
-				iniFile.comments = append(iniFile.comments, comment)
-			}
+			cfg.AddComment(curSection, comment)
 		} else if len(line) > 0 {
 			if m := iniSectionRe.FindStringSubmatch(line); len(m) > 0 {
-				if len(curSection.options) > 0 || len(curSection.comments) > 0 {
-					iniFile.sections = append(iniFile.sections, curSection)
-				}
-				curSection = section{name: m[1]}
+				curSection = m[1]
 			} else if m := iniOptionRe.FindStringSubmatch(line); len(m) > 0 {
+				key := m[1]
 				val := m[2]
 				if !strings.Contains(val, "\"") {
 					// If val does not contain any quote characers, we can make it
@@ -115,14 +128,12 @@ func Parse(stream io.Reader) Config {
 				if val[0] == '"' {
 					val, _ = strconv.Unquote(val)
 				}
-				curSection.options = append(curSection.options, option{m[1], val})
+
+				cfg.Set(curSection, key, val)
 			}
 		}
 	}
-	if len(curSection.options) > 0 || len(curSection.comments) > 0 {
-		iniFile.sections = append(iniFile.sections, curSection)
-	}
-	return iniFile
+	return cfg
 }
 
 // Write writes the sections and options to the io.Writer in INI format.
