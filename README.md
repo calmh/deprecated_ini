@@ -1,4 +1,4 @@
-ini [![Build Status](https://drone.io/github.com/calmh/ini/status.png)](https://drone.io/github.com/calmh/ini/latest)
+ini
 ===
 
 Yet another .INI file parser / writer. Created because the existing ones
