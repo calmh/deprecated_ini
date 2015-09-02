@@ -1,5 +1,5 @@
 // Package ini provides trivial parsing of .INI format files.
-package ini
+package ini // import "github.com/calmh/deprecated_ini"
 
 import (
 	"bufio"
